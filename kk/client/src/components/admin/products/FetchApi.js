@@ -1,7 +1,6 @@
 import axios from "axios";
-import { useContext } from "react";
 
-const apiURL = process.env.REACT_APP_API_URL;
+const apiURL = (typeof process !== 'undefined' && process.env?.REACT_APP_API_URL) || "http://localhost:8000";
 
 export const getAllProduct = async () => {
   try {

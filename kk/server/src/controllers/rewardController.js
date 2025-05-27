@@ -1,6 +1,6 @@
 const SuperCoin = require("../models/SuperCoin");
-const Order = require("../models/Order");
-const User = require("../models/User");
+const Order = require("../../models/orders");
+const User = require("../../models/users");
 
 exports.getRewards = async (req, res) => {
   try {
@@ -54,4 +54,4 @@ exports.createReward = async (orderId, userId, amount) => {
     console.error("Error creating reward:", error);
     return null;
   }
-}; 
+};

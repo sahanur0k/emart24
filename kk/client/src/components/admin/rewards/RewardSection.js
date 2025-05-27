@@ -1,25 +1,64 @@
 import React, { Fragment, useEffect, useState } from "react";
-import { rewardList, updateRewardStatus } from "./FetchApi";
+import {
+  rewardList,
+  updateRewardStatus,
+  getAllUsersWithSuperCoins,
+  updateUserSuperCoins,
+  createRewardCode,
+  getAllRewardCodes,
+  deleteRewardCode
+} from "./FetchApi";
 
 const RewardSection = () => {
+  const [activeTab, setActiveTab] = useState("users");
   const [state, setState] = useState({
     rewards: [],
+    users: [],
+    rewardCodes: [],
     loading: true,
     error: false,
   });
 
-  useEffect(() => {
-    loadRewards();
-  }, []);
+  const [coinModal, setCoinModal] = useState({
+    show: false,
+    userId: null,
+    userName: "",
+    currentCoins: 0,
+    action: "add", // "add" or "remove"
+    amount: ""
+  });
 
-  const loadRewards = async () => {
+  const [codeModal, setCodeModal] = useState({
+    show: false,
+    code: "",
+    coins: "",
+    description: "",
+    expiryDate: ""
+  });
+
+  useEffect(() => {
+    loadAllData();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadAllData = async () => {
     try {
-      const response = await rewardList();
-      if (response && response.rewards) {
-        setState({ ...state, rewards: response.rewards, loading: false });
-      }
+      setState(prev => ({ ...prev, loading: true }));
+
+      const [rewardsResponse, usersResponse, codesResponse] = await Promise.all([
+        rewardList(),
+        getAllUsersWithSuperCoins(),
+        getAllRewardCodes()
+      ]);
+
+      setState(prev => ({
+        ...prev,
+        rewards: rewardsResponse?.rewards || [],
+        users: usersResponse?.users || [],
+        rewardCodes: codesResponse?.codes || [],
+        loading: false
+      }));
     } catch (error) {
-      setState({ ...state, error: true, loading: false });
+      setState(prev => ({ ...prev, error: true, loading: false }));
     }
   };
 
@@ -27,10 +66,55 @@ const RewardSection = () => {
     try {
       const response = await updateRewardStatus(rewardId, status);
       if (response && response.success) {
-        loadRewards(); // Reload the rewards list
+        loadAllData();
       }
     } catch (error) {
-      setState({ ...state, error: true });
+      setState(prev => ({ ...prev, error: true }));
+    }
+  };
+
+  const handleCoinUpdate = async () => {
+    try {
+      const { userId, action, amount } = coinModal;
+      const response = await updateUserSuperCoins(userId, action, parseInt(amount));
+
+      if (response && response.success) {
+        setCoinModal({ show: false, userId: null, userName: "", currentCoins: 0, action: "add", amount: "" });
+        loadAllData();
+      } else {
+        alert(response?.error || "Failed to update super coins");
+      }
+    } catch (error) {
+      alert("Error updating super coins");
+    }
+  };
+
+  const handleCreateRewardCode = async () => {
+    try {
+      const { code, coins, description, expiryDate } = codeModal;
+      const response = await createRewardCode(code, parseInt(coins), description, expiryDate);
+
+      if (response && response.success) {
+        setCodeModal({ show: false, code: "", coins: "", description: "", expiryDate: "" });
+        loadAllData();
+      } else {
+        alert(response?.error || "Failed to create reward code");
+      }
+    } catch (error) {
+      alert("Error creating reward code");
+    }
+  };
+
+  const handleDeleteRewardCode = async (codeId) => {
+    if (window.confirm("Are you sure you want to delete this reward code?")) {
+      try {
+        const response = await deleteRewardCode(codeId);
+        if (response && response.success) {
+          loadAllData();
+        }
+      } catch (error) {
+        alert("Error deleting reward code");
+      }
     }
   };
 
@@ -59,79 +143,394 @@ const RewardSection = () => {
   return (
     <Fragment>
       <div className="mx-4 mt-20 md:mx-12 md:mt-32 lg:mt-24">
-        <div className="text-2xl mx-2 mb-4">Super Coin Rewards</div>
-        <div className="bg-white shadow-md rounded-lg overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Order
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Amount
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {state.rewards.map((reward) => (
-                <tr key={reward._id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {reward.user.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    Order #{reward.order._id.slice(-6)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {reward.amount} coins
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        reward.status === "pending"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : reward.status === "approved"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {reward.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {reward.status === "pending" && (
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleStatusUpdate(reward._id, "approved")}
-                          className="text-green-600 hover:text-green-900"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleStatusUpdate(reward._id, "rejected")}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="text-3xl font-bold mx-2 mb-6">Super Coin Management</div>
+
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 mb-6">
+          <button
+            onClick={() => setActiveTab("users")}
+            className={`px-4 py-2 rounded-lg font-medium ${
+              activeTab === "users"
+                ? "bg-yellow-500 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            👥 User Management
+          </button>
+          <button
+            onClick={() => setActiveTab("rewards")}
+            className={`px-4 py-2 rounded-lg font-medium ${
+              activeTab === "rewards"
+                ? "bg-yellow-500 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            🎁 Pending Rewards
+          </button>
+          <button
+            onClick={() => setActiveTab("codes")}
+            className={`px-4 py-2 rounded-lg font-medium ${
+              activeTab === "codes"
+                ? "bg-yellow-500 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            🎫 Reward Codes
+          </button>
         </div>
+
+        {/* Users Tab */}
+        {activeTab === "users" && (
+          <div className="bg-white shadow-md rounded-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">All Users & Super Coins</h3>
+              <p className="text-sm text-gray-600">Manage user super coin balances</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      User
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Super Coins
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {state.users.map((user) => (
+                    <tr key={user._id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="font-medium text-gray-900">{user.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {user.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-lg font-bold text-yellow-600">
+                          🥇 {user.totalSuperCoins || 0}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => setCoinModal({
+                              show: true,
+                              userId: user._id,
+                              userName: user.name,
+                              currentCoins: user.totalSuperCoins || 0,
+                              action: "add",
+                              amount: ""
+                            })}
+                            className="text-green-600 hover:text-green-900 bg-green-100 px-3 py-1 rounded"
+                          >
+                            ➕ Add
+                          </button>
+                          <button
+                            onClick={() => setCoinModal({
+                              show: true,
+                              userId: user._id,
+                              userName: user.name,
+                              currentCoins: user.totalSuperCoins || 0,
+                              action: "remove",
+                              amount: ""
+                            })}
+                            className="text-red-600 hover:text-red-900 bg-red-100 px-3 py-1 rounded"
+                          >
+                            ➖ Remove
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Pending Rewards Tab */}
+        {activeTab === "rewards" && (
+          <div className="bg-white shadow-md rounded-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">Pending Reward Approvals</h3>
+              <p className="text-sm text-gray-600">Approve or reject super coin rewards from orders</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      User
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Order
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {state.rewards.map((reward) => (
+                    <tr key={reward._id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {reward.user?.name || "Unknown User"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        Order #{reward.order?._id?.slice(-6) || "N/A"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="font-bold text-yellow-600">🥇 {reward.amount} coins</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            reward.status === "pending"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : reward.status === "approved"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {reward.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        {reward.status === "pending" && (
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleStatusUpdate(reward._id, "approved")}
+                              className="text-green-600 hover:text-green-900 bg-green-100 px-3 py-1 rounded"
+                            >
+                              ✅ Approve
+                            </button>
+                            <button
+                              onClick={() => handleStatusUpdate(reward._id, "rejected")}
+                              className="text-red-600 hover:text-red-900 bg-red-100 px-3 py-1 rounded"
+                            >
+                              ❌ Reject
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Reward Codes Tab */}
+        {activeTab === "codes" && (
+          <div className="bg-white shadow-md rounded-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">Reward Codes</h3>
+                <p className="text-sm text-gray-600">Create and manage reward codes for users</p>
+              </div>
+              <button
+                onClick={() => setCodeModal({ show: true, code: "", coins: "", description: "", expiryDate: "" })}
+                className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-medium"
+              >
+                ➕ Create New Code
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Code
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Coins
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Description
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Expiry
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Used
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {state.rewardCodes.map((code) => (
+                    <tr key={code._id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="font-mono bg-gray-100 px-2 py-1 rounded">{code.code}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="font-bold text-yellow-600">🥇 {code.coins}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-600">{code.description}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {code.expiryDate ? new Date(code.expiryDate).toLocaleDateString() : "No expiry"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          code.isUsed ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
+                        }`}>
+                          {code.isUsed ? "Used" : "Active"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => handleDeleteRewardCode(code._id)}
+                          className="text-red-600 hover:text-red-900 bg-red-100 px-3 py-1 rounded"
+                        >
+                          🗑️ Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Coin Management Modal */}
+        {coinModal.show && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  {coinModal.action === "add" ? "Add" : "Remove"} Super Coins
+                </h3>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600">User: <strong>{coinModal.userName}</strong></p>
+                  <p className="text-sm text-gray-600">Current Balance: <strong className="text-yellow-600">🥇 {coinModal.currentCoins}</strong></p>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Amount to {coinModal.action}:
+                  </label>
+                  <input
+                    type="number"
+                    value={coinModal.amount}
+                    onChange={(e) => setCoinModal(prev => ({ ...prev, amount: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                    placeholder="Enter amount"
+                    min="1"
+                  />
+                </div>
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => setCoinModal({ show: false, userId: null, userName: "", currentCoins: 0, action: "add", amount: "" })}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCoinUpdate}
+                    className={`px-4 py-2 text-white rounded-md ${
+                      coinModal.action === "add"
+                        ? "bg-green-500 hover:bg-green-600"
+                        : "bg-red-500 hover:bg-red-600"
+                    }`}
+                    disabled={!coinModal.amount || parseInt(coinModal.amount) <= 0}
+                  >
+                    {coinModal.action === "add" ? "Add Coins" : "Remove Coins"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reward Code Creation Modal */}
+        {codeModal.show && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Create Reward Code</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Code:</label>
+                    <input
+                      type="text"
+                      value={codeModal.code}
+                      onChange={(e) => setCodeModal(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                      placeholder="e.g., WELCOME50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Super Coins:</label>
+                    <input
+                      type="number"
+                      value={codeModal.coins}
+                      onChange={(e) => setCodeModal(prev => ({ ...prev, coins: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                      placeholder="Amount of coins"
+                      min="1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Description:</label>
+                    <input
+                      type="text"
+                      value={codeModal.description}
+                      onChange={(e) => setCodeModal(prev => ({ ...prev, description: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                      placeholder="e.g., Super coin hurry up by something"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date (Optional):</label>
+                    <input
+                      type="date"
+                      value={codeModal.expiryDate}
+                      onChange={(e) => setCodeModal(prev => ({ ...prev, expiryDate: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    onClick={() => setCodeModal({ show: false, code: "", coins: "", description: "", expiryDate: "" })}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateRewardCode}
+                    className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
+                    disabled={!codeModal.code || !codeModal.coins || !codeModal.description}
+                  >
+                    Create Code
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Fragment>
   );
 };
 
-export default RewardSection; 
+export default RewardSection;

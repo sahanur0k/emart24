@@ -5,23 +5,34 @@ export const dashboardUserState = {
 };
 
 export const dashboardUserReducer = (state, action) => {
+  console.log("dashboardUserReducer - Action:", action.type, "Payload:", action.payload);
+  console.log("dashboardUserReducer - Current state before update:", state);
+
+  let newState;
   switch (action.type) {
     case "userDetails":
-      return {
+      newState = {
         ...state,
         userDetails: action.payload,
       };
+      console.log("dashboardUserReducer - New state after userDetails:", newState);
+      return newState;
     case "OrderByUser":
-      return {
+      newState = {
         ...state,
         OrderByUser: action.payload,
       };
+      console.log("dashboardUserReducer - New state after OrderByUser:", newState);
+      return newState;
     case "loading":
-      return {
+      newState = {
         ...state,
         loading: action.payload,
       };
+      console.log("dashboardUserReducer - New state after loading:", newState);
+      return newState;
     default:
+      console.log("dashboardUserReducer - Unknown action type, returning current state");
       return state;
   }
 };

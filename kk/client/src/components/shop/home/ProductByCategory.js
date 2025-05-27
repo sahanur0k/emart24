@@ -3,7 +3,7 @@ import { useHistory, useParams } from "react-router-dom";
 import Layout from "../layout";
 import { productByCategory } from "../../admin/products/FetchApi";
 
-const apiURL = process.env.REACT_APP_API_URL;
+const apiURL = (typeof process !== 'undefined' && process.env?.REACT_APP_API_URL) || "http://localhost:8000";
 
 const Submenu = ({ category }) => {
   const history = useHistory();

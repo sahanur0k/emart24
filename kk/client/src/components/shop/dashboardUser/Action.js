@@ -12,21 +12,72 @@ export const logout = () => {
   window.location.href = "/";
 };
 
+// Prevent multiple simultaneous calls
+let fetchDataInProgress = false;
+
 export const fetchData = async (dispatch) => {
+  if (fetchDataInProgress) {
+    console.log("fetchData - Already in progress, skipping");
+    return;
+  }
+
+  fetchDataInProgress = true;
+  console.log("fetchData - Starting user data fetch");
   dispatch({ type: "loading", payload: true });
-  let userId = JSON.parse(localStorage.getItem("jwt"))
-    ? JSON.parse(localStorage.getItem("jwt")).user._id
-    : "";
+
+  const jwt = localStorage.getItem("jwt");
+  console.log("fetchData - JWT from localStorage:", jwt);
+
+  let userId = "";
   try {
+    if (jwt) {
+      const parsedJWT = JSON.parse(jwt);
+      console.log("fetchData - Parsed JWT:", parsedJWT);
+      userId = parsedJWT?.user?._id || "";
+    }
+  } catch (error) {
+    console.error("fetchData - Error parsing JWT:", error);
+  }
+
+  console.log("fetchData - Extracted userId:", userId);
+
+  if (!userId) {
+    console.warn("fetchData - No valid user ID found, stopping fetch");
+    dispatch({ type: "userDetails", payload: null });
+    dispatch({ type: "loading", payload: false });
+    fetchDataInProgress = false;
+    return;
+  }
+
+  try {
+    console.log("fetchData - Calling getUserById with userId:", userId);
     let responseData = await getUserById(userId);
-    setTimeout(() => {
-      if (responseData && responseData.User) {
+    console.log("fetchData - Response from getUserById:", responseData);
+
+    if (responseData && responseData.User) {
+      console.log("fetchData - User found, dispatching userDetails:", responseData.User);
+      // Use setTimeout to ensure proper state batching
+      setTimeout(() => {
         dispatch({ type: "userDetails", payload: responseData.User });
         dispatch({ type: "loading", payload: false });
-      }
-    }, 500);
+      }, 0);
+    } else {
+      // User not found in database - this can happen if JWT exists but user record doesn't
+      console.warn("fetchData - User not found in database. User may need to re-register.");
+      console.warn("fetchData - Response was:", responseData);
+      setTimeout(() => {
+        dispatch({ type: "userDetails", payload: null });
+        dispatch({ type: "loading", payload: false });
+      }, 0);
+    }
   } catch (error) {
-    console.log(error);
+    console.error("fetchData - Error fetching user data:", error);
+    setTimeout(() => {
+      dispatch({ type: "userDetails", payload: null });
+      dispatch({ type: "loading", payload: false });
+    }, 0);
+  } finally {
+    fetchDataInProgress = false;
   }
 };
 

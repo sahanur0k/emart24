@@ -10,9 +10,8 @@ import { cartListProduct } from "../partials/FetchApi";
 
 import { isWishReq, unWishReq, isWish } from "../home/Mixins";
 import { updateQuantity, slideImage, addToCart, cartList } from "./Mixins";
-import { totalCost } from "../partials/Mixins";
 
-const apiURL = process.env.REACT_APP_API_URL;
+const apiURL = (typeof process !== 'undefined' && process.env?.REACT_APP_API_URL) || "http://localhost:8000";
 
 const ProductDetailsSection = (props) => {
   let { id } = useParams();

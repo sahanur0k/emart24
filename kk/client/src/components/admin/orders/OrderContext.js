@@ -5,6 +5,7 @@ export const orderState = {
     modal: false,
     oId: null,
     status: "",
+    orderData: null,
   },
   loading: false,
 };
@@ -31,6 +32,7 @@ export const orderReducer = (state, action) => {
           modal: true,
           oId: action.oId,
           status: action.status,
+          orderData: action.orderData,
         },
       };
     case "updateOrderModalClose":
@@ -40,6 +42,7 @@ export const orderReducer = (state, action) => {
           modal: false,
           oId: null,
           status: "",
+          orderData: null,
         },
       };
     case "loading":

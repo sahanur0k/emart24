@@ -5,7 +5,7 @@ import { subTotal, quantity, totalCost } from "../partials/Mixins";
 import { cartListProduct } from "../partials/FetchApi";
 import { createOrder } from "./FetchApi";
 
-const apiURL = process.env.REACT_APP_API_URL;
+const apiURL = (typeof process !== 'undefined' && process.env?.REACT_APP_API_URL) || "http://localhost:8000";
 
 export const CheckoutComponent = (props) => {
   const history = useHistory();

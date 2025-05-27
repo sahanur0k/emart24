@@ -32,6 +32,8 @@ const orderRouter = require("./routes/orders");
 const usersRouter = require("./routes/users");
 const customizeRouter = require("./routes/customize");
 const superCoinRouter = require("./routes/superCoins");
+const rewardRouter = require("./src/routes/rewardRoutes");
+const adminSuperCoinRouter = require("./src/routes/adminSuperCoinRoutes");
 // Import Auth middleware for check user login or not~
 const { loginCheck } = require("./middleware/auth");
 const CreateAllFolder = require("./config/uploadFolderCreateScript");
@@ -69,6 +71,8 @@ app.use("/api/product", productRouter);
 app.use("/api/order", orderRouter);
 app.use("/api/customize", customizeRouter);
 app.use("/api/super-coin", superCoinRouter);
+app.use("/api", rewardRouter);
+app.use("/api/admin", adminSuperCoinRouter);
 
 
 // Run Server

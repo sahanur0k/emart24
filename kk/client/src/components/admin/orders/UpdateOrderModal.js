@@ -6,14 +6,30 @@ const UpdateOrderModal = (props) => {
   const { data, dispatch } = useContext(OrderContext);
 
   const [status, setStatus] = useState("");
-
   const [oId, setOid] = useState("");
+  const [orderData, setOrderData] = useState(null);
 
   useEffect(() => {
     setOid(data.updateOrderModal.oId);
     setStatus(data.updateOrderModal.status);
+    setOrderData(data.updateOrderModal.orderData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.updateOrderModal.modal]);
+
+  // Calculate total super coins for this order
+  const calculateSuperCoins = () => {
+    let totalCoins = 0;
+    if (orderData && orderData.allProduct && orderData.allProduct.length > 0) {
+      orderData.allProduct.forEach(product => {
+        if (product.id && product.id.pSuperCoinReward) {
+          totalCoins += product.id.pSuperCoinReward * (product.quantitiy || 0);
+        }
+      });
+    }
+    return totalCoins;
+  };
+
+  const totalSuperCoins = calculateSuperCoins();
 
   const fetchData = async () => {
     let responseData = await getAllOrder();
@@ -108,13 +124,37 @@ const UpdateOrderModal = (props) => {
               </option>
             </select>
           </div>
+
+          {/* Super Coin Information */}
+          {totalSuperCoins > 0 && (
+            <div className="w-full bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-semibold text-yellow-800">Super Coin Reward</h4>
+                <span className="text-lg font-bold text-yellow-600">{totalSuperCoins} coins</span>
+              </div>
+              {status === "Delivered" ? (
+                <p className="text-sm text-green-700">
+                  ✓ Super coins will be awarded to the customer when you update status to "Delivered"
+                </p>
+              ) : orderData?.status === "Delivered" ? (
+                <p className="text-sm text-green-700">
+                  ✓ Super coins have already been awarded to the customer
+                </p>
+              ) : (
+                <p className="text-sm text-yellow-700">
+                  Super coins will be awarded when order status is changed to "Delivered"
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col space-y-1 w-full pb-4 md:pb-6">
             <button
               style={{ background: "#303031" }}
               onClick={(e) => submitForm()}
               className="rounded-full bg-gray-800 text-gray-100 text-lg font-medium py-2"
             >
-              Update category
+              Update Order Status
             </button>
           </div>
         </div>

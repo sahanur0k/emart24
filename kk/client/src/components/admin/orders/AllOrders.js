@@ -44,6 +44,7 @@ const AllCategory = (props) => {
               <th className="px-4 py-2 border">Products</th>
               <th className="px-4 py-2 border">Status</th>
               <th className="px-4 py-2 border">Total</th>
+              <th className="px-4 py-2 border">Super Coins</th>
               <th className="px-4 py-2 border">Transaction Id</th>
               <th className="px-4 py-2 border">Customer</th>
               <th className="px-4 py-2 border">Email</th>
@@ -62,7 +63,7 @@ const AllCategory = (props) => {
                     key={i}
                     order={item}
                     editOrder={(oId, type, status) =>
-                      editOrderReq(oId, type, status, dispatch)
+                      editOrderReq(oId, type, status, item, dispatch)
                     }
                   />
                 );
@@ -70,7 +71,7 @@ const AllCategory = (props) => {
             ) : (
               <tr>
                 <td
-                  colSpan="12"
+                  colSpan="13"
                   className="text-xl text-center font-semibold py-8"
                 >
                   No order found
@@ -90,6 +91,21 @@ const AllCategory = (props) => {
 /* Single Category Component */
 const CategoryTable = ({ order, editOrder }) => {
   const { dispatch } = useContext(OrderContext);
+
+  // Calculate total super coins for this order
+  const calculateSuperCoins = () => {
+    let totalCoins = 0;
+    if (order.allProduct && order.allProduct.length > 0) {
+      order.allProduct.forEach(product => {
+        if (product.id && product.id.pSuperCoinReward) {
+          totalCoins += product.id.pSuperCoinReward * (product.quantitiy || 0);
+        }
+      });
+    }
+    return totalCoins;
+  };
+
+  const totalSuperCoins = calculateSuperCoins();
 
   return (
     <Fragment>
@@ -144,6 +160,20 @@ const CategoryTable = ({ order, editOrder }) => {
         </td>
         <td className="hover:bg-gray-200 p-2 text-center">
           ${order.amount}.00
+        </td>
+        <td className="hover:bg-gray-200 p-2 text-center">
+          {totalSuperCoins > 0 ? (
+            <div className="flex flex-col items-center">
+              <span className="text-yellow-600 font-semibold">{totalSuperCoins} coins</span>
+              {order.status === "Delivered" ? (
+                <span className="text-xs text-green-600">✓ Awarded</span>
+              ) : (
+                <span className="text-xs text-orange-600">Pending</span>
+              )}
+            </div>
+          ) : (
+            <span className="text-gray-400">No coins</span>
+          )}
         </td>
         <td className="hover:bg-gray-200 p-2 text-center">
           {order.transactionId}
