@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <!-- <link rel="icon" href="%PUBLIC_URL%/favicon.ico" /> -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="EMART24 | Your trusted e-commerce platform" />
+    <title>EMART24</title>
+    <link rel="stylesheet" type="text/css" href="%PUBLIC_URL%/style.css">
+</head>
+
+<body id="page-top">
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <script>
+        // Global polyfill for process object to prevent "process is not defined" errors
+        window.process = window.process || {
+            env: {
+                NODE_ENV: 'development',
+                REACT_APP_API_URL: 'http://localhost:8000',
+                PUBLIC_URL: ''
+            }
+        };
+
+        // Ensure process.env exists
+        if (!window.process.env) {
+            window.process.env = {
+                NODE_ENV: 'development',
+                REACT_APP_API_URL: 'http://localhost:8000',
+                PUBLIC_URL: ''
+            };
+        }
+    </script>
+    <div class="font-light text-base text-gray-800 bg-white flex flex-col min-h-screen" id="root"></div>
+</body>
+
+</html>
